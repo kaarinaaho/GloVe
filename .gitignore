@@ -45,3 +45,9 @@ build/*
 /vectors.bin
 /vectors.txt
 /vocab.txt
+
+# any files in data subdirs
+data/
+processed/
+results/
+
