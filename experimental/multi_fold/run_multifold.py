@@ -20,12 +20,6 @@ from utils import embs_quickload
 
 from scipy.stats import spearmanr, pearsonr
 
-# Args to bash script
-# 1: name of corpus file 
-# 2: name of output vocab file
-# 3: name of output co-occurrence file
-# 4: name of output co-occurrence shuffle file
-# 5: name of output vector file
 
 class SplitEmbGenerator:
     def __init__(self, corpusfile, split_type="nfold", n_folds=20,
