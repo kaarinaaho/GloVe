@@ -8,14 +8,14 @@ def embs_quickload(n_word_dim=300):
     # Quickload
     if n_word_dim==300:
         wdnimg = np.loadtxt(
-            os.path.join(Path(__file__), "assets/embeddings/wdnimg300.txt")
+            os.path.join(Path(__file__).parent, "assets/embeddings/wdnimg300.txt")
             )
     elif n_word_dim==50:
         wdnimg = np.loadtxt(
-            os.path.join(Path(__file__), "assets/embeddings/wdnimg50.txt")
+            os.path.join(Path(__file__).parent, "assets/embeddings/wdnimg50.txt")
             )
     imgnwd = np.loadtxt(
-            os.path.join(Path(__file__), "assets/embeddings/imgnwd50.txt")
+            os.path.join(Path(__file__).parent, "assets/embeddings/imgnwd50.txt")
             )
 
     wdnimg = scale_array(wdnimg, -1, 1)
@@ -23,7 +23,7 @@ def embs_quickload(n_word_dim=300):
 
 
     textfile = open(
-        os.path.join(Path(__file__), "assets/embeddings/vocab.txt"), "r"
+        os.path.join(Path(__file__).parent, "assets/embeddings/vocab.txt"), "r"
         )
     vocab = textfile.read().split('\n')
 
@@ -40,7 +40,7 @@ def scale_array(a, newmin, newmax):
 
 def load_aoa_data(acquisition_threshold=None):
 
-    aoa_fp = os.path.join(Path(__file__), "assets/aoa/aoa_data_EN.csv")
+    aoa_fp = os.path.join(Path(__file__).parent, "assets/aoa/aoa_data_EN.csv")
     
     # Import aoa data and match column names
     aoa = pd.read_csv(aoa_fp, header=0, index_col=0)

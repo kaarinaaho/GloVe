@@ -227,6 +227,6 @@ class SplitEmbGenerator:
 
 if __name__ == "__main__":
 
-    generator = SplitEmbGenerator("enwiki8.txt")
+    generator = SplitEmbGenerator("enwik8.txt")
     generator.generate_split_corpora()
     generator.run_embedding_per_fold()

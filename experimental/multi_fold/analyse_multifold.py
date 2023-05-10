@@ -1,198 +1,246 @@
+import random
 import numpy as np
-import os
+import os, sys
+import pandas as pd
+from sklearn.metrics.pairwise import euclidean_distances
+from scipy.stats import spearmanr, pearsonr
+from pathlib import Path
+
+file = Path(__file__).resolve()
+parent, root = file.parent, file.parents[1]
+sys.path.append(str(root))
+
+# Additionally remove the current file's directory from sys.path
+try:
+    sys.path.remove(str(parent))
+except ValueError: # Already removed
+    pass
+import utils
 
 
-
-def get_all_vectors(folder):
-
-    vec_list = []
-
-    vec_files = [x for x in os.listdir(folder)
-                if (x.split("_")[-1] == "vectors.txt.txt")
-                and("full" not in x)]
-
-
-    vocab_files =  [x for x in os.listdir(folder)
-                    if ("vocab" in x) and ("full" not in x)]
-
-    textfile = open(
-                os.path.join(folder, vocab_files[0]),
-                "r")
-    intersect_vocab = textfile.read().split('\n')
-    intersect_vocab = [x.split(" ")[0] for x in intersect_vocab]
-    for i, f in enumerate(vocab_files[1:]):
-        print(i)
-        textfile = open(
-            os.path.join(folder, f),
-            "r")
-        vocab1 = textfile.read().split('\n')
-        vocab1 = [x.split(" ")[0] for x in vocab1]
-        intersect_vocab = [x for x in intersect_vocab if x in vocab1]
-
-    for f in vec_files:
-        print(f)
-        fs = f.split("_")[-1]
-        n = f.split("_")[-2]
-        n = n.replace("split", "")
-
-        vecs = np.loadtxt(
-            os.path.join(folder, f),
-            usecols = [x for x in range(1,50)]
-            )
-
-        textfile = open(
-            os.path.join(folder, f"vocab_{n}.txt"),
-            "r")
-        vocab2 = textfile.read().split('\n')
-        vocab2 = [x.split(" ")[0] for x in vocab2]
-
-        vocab_idxs_2 = [vocab2.index(x) for x in intersect_vocab]
-
-        vecs = vecs[vocab_idxs_2,:]
-        vec_list.append(vecs)
-
-    return vec_list, intersect_vocab
-
-#generate_fold_corpora("/Users/apple/Documents/GitHub/GloVe/multi_fold/multi_fold_enwik8/enwiki8_compiled.txt")
-#run_embedding_for_og("/Users/apple/Documents/GitHub/GloVe/multi_fold/multi_fold_enwik8/enwiki8_compiled.txt")
-#run_embedding_per_fold()
-
-
-
-def upper_triu_for_vocab(emb, emb_vocab, select_vocab):
-
-    index = [emb_vocab.index(x) for x in select_vocab if x in emb_vocab]
-    idxed_emb = emb[index][:]
-    #cos_sim = cosine_similarity(idxed_emb)
-    cos_sim = euclidean_distances(idxed_emb)
-    upper = cos_sim[np.triu_indices(len(select_vocab),1)]
-
-    return index, idxed_emb, cos_sim, upper
-
-
-def compare_to_emb(emb1, emb1_vocab, emb2, emb2_vocab, aoa):
-
-    intersect_vocab = [x for x in emb1_vocab if x in emb2_vocab]
-
-    __, __, __, upper1 = upper_triu_for_vocab(emb1, emb1_vocab, intersect_vocab)
-    __, __, __, upper2 = upper_triu_for_vocab(emb2, emb2_vocab, intersect_vocab)
-
-    corr = pearsonr(upper1, upper2)
-    print(f"Correlation for all items in vocab: {corr}")
-
-    intersect_vocab_aoa = [x for x in intersect_vocab if x in list(aoa["concept_i"])]
-
-    __, __, __, upper1 = upper_triu_for_vocab(emb1, emb1_vocab, intersect_vocab_aoa)
-    __, __, __, upper2 = upper_triu_for_vocab(emb2, emb2_vocab, intersect_vocab_aoa)
-
-    corr2 = pearsonr(upper1, upper2)
-    print(f"Correlation for early AoA in vocab: {corr2}")   
-
-    return corr, corr2 
-
-
-vec_list, vocab = get_all_vectors("/Users/apple/Documents/GitHub/GloVe/multi_fold/multi_fold_enwik8")
-print("vec_list done")
-
-wdnimg, ___, og_vocab = embs_quickload(50)
-aoa = load_aoa_data()
-
-# Get intersection with words of interest in intersection
-vocab = [x for x in og_vocab if x in vocab]
-intersect_idx = [vocab.index(x) for x in vocab]
-vec_list = [x[intersect_idx,:] for x in vec_list]
-
-
-## Get pairwise correlations of folds
-"""
-corr_full_list = []
-corr_aoa_list = []
-for i, p in enumerate(vec_list):
-    for q in range(p+1, len(vec_list)):
-        print(p,q)
-        pw1 = euclidean_distances(vec_list[p])
-        pw2 = euclidean_distances(vec_list[q])
-
-        #corr_full, corr_aoa = compare_to_emb(vec_list[p], vocab, vec_list[q], vocab, aoa)
-        corr_full = pearsonr(
-            pw1[np.triu_indices(len(vocab), 1)],
-            pw2[np.triu_indices(len(vocab), 1)])
-
-        aoa_idx = [
-            i for i, x in enumerate(vocab) if x in list(aoa["concept_i"])
-            ]
-        pw_1 = euclidean_distances(
-            vec_list[p][aoa_idx,:]
-            )
-        pw_2 = euclidean_distances(
-            vec_list[q][aoa_idx,:]
-            )
-        
-        corr_aoa = pearsonr(pw_1[np.triu_indices(len(aoa_idx), 1)], pw_2[np.triu_indices(len(aoa_idx), 1)])
-
-        corr_full_list.append(corr_full[0])
-        corr_aoa_list.append(corr_aoa[0])
-print(f"Mean pairwise cross-fold correlations (all): {np.mean(corr_full_list)}; (AoA): {np.mean(corr_aoa_list)}")
-"""
-
-
-# Get pairwise correlation of folds with original GloVe
-
-corr_og_list_full = []
-corr_og_list_aoa = []
-for p in range(len(vec_list)):
-        
-    corr_full, corr_aoa = compare_to_emb(
-        vec_list[p], vocab, wdnimg, og_vocab, aoa
+class FoldAnalyser():
+    def __init__(self, fold_folder):
+        self.fold_folder = fold_folder
+        self.results_folder = os.path.join(
+            Path(__file__).parent, f"{self.fold_folder}/results"
         )
-    corr_og_list_full.append(corr_full[0])
-    corr_og_list_aoa.append(corr_aoa[0])
+        self.aoa = utils.load_aoa_data()
+        wdnimg, ___, og_vocab = utils.embs_quickload(50)
+        self.wdnimg = wdnimg
+        self.og_vocab = og_vocab
+        vec_list, all_fold_vocab = self._load_all_vectors()
 
-print(f"Mean fold correlations w og (all): {np.mean(np.array(corr_og_list_full))}; (AoA): {np.mean(np.array(corr_og_list_aoa))}")
+        # Filter for only items present in original embs
+        all_fold_reduced = [x for x in self.og_vocab if x in all_fold_vocab]
+        all_fold_idx = [all_fold_vocab.index(x) for x in all_fold_reduced]
+        self.vec_list = [x[all_fold_idx, :] for x in vec_list]
+        self.all_fold_vocab = all_fold_reduced
 
 
-# Correlation of full enwik8 corpus with original GloVe
-"""
-folder="/Users/apple/Documents/GitHub/GloVe/multi_fold/multi_fold_enwik8"
-f="enwik8_full_vectors.txt"
+    def _load_all_vectors(self):
+        print("Loading vectors...")
+        # Load all vector file names
+        vector_folder = os.path.join(
+            self.results_folder, 'vectors'
+        )
+        vec_list = []
+        vec_files = [x for x in os.listdir(vector_folder)
+                    if (x.split(".")[-1] == "txt")]
 
-vecs_full_enwik8 = np.loadtxt(
-    os.path.join(folder, f),
-    usecols = [x for x in range(1,50)]
-)
+        # Load all vocab file names
+        vocab_folder = os.path.join(
+            self.results_folder, 'vocab'
+        )
+        vocab_files = [x for x in os.listdir(vocab_folder)]
 
-f = "vocab_full.txt"
-textfile = open(
-            os.path.join(folder, f),
+        # Get words which occur in all vocabularies
+        all_fold_vocab = self._get_intersection_vocab(
+            vocab_folder, vocab_files
+            )
+
+        for i, f in enumerate(vec_files):
+            print(f"Loading file {i}/{len(vec_files)}: {f}")
+            # Load vector file
+            vecs = np.loadtxt(
+                os.path.join(vector_folder, f),
+                usecols = [x for x in range(1,50)]
+                )
+
+            # Load corresponding vocab file
+            n = f.split(".")[0]
+            n = n.replace("split", "")
+
+            textfile = open(
+                os.path.join(vocab_folder, f"{n}.txt"),
+                "r")
+            vocab = textfile.read().split('\n')
+            vocab = [x.split(" ")[0] for x in vocab]
+
+            # Words are in same order for each vector set
+            vocab_idxs = [vocab.index(x) for x in all_fold_vocab]
+
+            vecs = vecs[vocab_idxs,:]
+            vec_list.append(vecs)
+        print("Vectors loaded")
+
+        return vec_list, all_fold_vocab
+
+
+    def _get_intersection_vocab(self, vocab_folder, vocab_files):
+        # Initialise vocab    
+        textfile = open(
+            os.path.join(vocab_folder, vocab_files[0]),
             "r")
-vocab_enwik8 = textfile.read().split('\n')
-vocab_enwik8 = [x.split(" ")[0] for x in vocab_enwik8]
+        intersect_vocab = textfile.read().split('\n')
+        intersect_vocab = [x.split(" ")[0] for x in intersect_vocab]
+        print("Loading intersection vocabularies...")
+        print(f"1/{len(vocab_files)}")
+        for i, f in enumerate(vocab_files[1:]):
+            print(f"{i+2}/{len(vocab_files)}")
+            textfile = open(
+                os.path.join(vocab_folder, f),
+                "r")
+            vocab1 = textfile.read().split('\n')
+            vocab1 = [x.split(" ")[0] for x in vocab1]
 
-corr_full, corr_aoa = compare_to_emb(
-    vecs_full_enwik8, vocab_enwik8, wdnimg, og_vocab, aoa
+            # Filter for words in both intersect and current
+            intersect_vocab = [x for x in intersect_vocab if x in vocab1]
+        print("Vocabulary intersections loaded.")
+        return intersect_vocab
+
+
+    def _upper_triu_for_vocab(self, emb, emb_vocab, select_vocab):
+
+        index = [emb_vocab.index(x) for x in select_vocab if x in emb_vocab]
+        idxed_emb = emb[index][:]
+        #cos_sim = cosine_similarity(idxed_emb)
+        sim = euclidean_distances(idxed_emb)
+        upper = sim[np.triu_indices(len(select_vocab),1)]
+
+        return index, idxed_emb, sim, upper
+
+
+    def _compare_to_emb(self, emb1, emb1_vocab, emb2, emb2_vocab, aoa):
+
+        intersect_vocab = [x for x in emb1_vocab if x in emb2_vocab]
+
+        __, __, __, upper1 = self._upper_triu_for_vocab(
+            emb1, emb1_vocab, intersect_vocab)
+        __, __, __, upper2 = self._upper_triu_for_vocab(
+            emb2, emb2_vocab, intersect_vocab)
+
+        corr, p = pearsonr(upper1, upper2)
+
+        intersect_vocab_aoa = [x for x in intersect_vocab if x in list(aoa["concept_i"])]
+
+        __, __, __, upper1 = self._upper_triu_for_vocab(
+            emb1, emb1_vocab, intersect_vocab_aoa)
+        __, __, __, upper2 = self._upper_triu_for_vocab(
+            emb2, emb2_vocab, intersect_vocab_aoa)
+
+        corr2, p = pearsonr(upper1, upper2)
+
+        return corr, corr2 
+
+
+    def get_pairwise_fold_corr(self):
+        # Requires generation of list of all fold vectors
+        corr_full_list = []
+        corr_aoa_list = []
+        print("Begin pairwise fold correlations:")
+        n_tot_corr = sum(range(len(self.vec_list)))
+        i=1
+        for p, x in enumerate(self.vec_list):
+            for q in range(p+1, len(self.vec_list)):
+                print(f"Pair ({p}, {q}), #{i}/{n_tot_corr}")
+                pw1 = euclidean_distances(self.vec_list[p])
+                pw2 = euclidean_distances(self.vec_list[q])
+
+                # Get correlation for all items
+                corr_full = pearsonr(
+                    pw1[np.triu_indices(len(self.all_fold_vocab), 1)],
+                    pw2[np.triu_indices(len(self.all_fold_vocab), 1)])
+
+                # Get correlation for AoA items
+                aoa_idx = [
+                    i for i, x in enumerate(self.all_fold_vocab)
+                    if x in list(self.aoa["concept_i"])
+                    ]
+                pw_1 = euclidean_distances(
+                    self.vec_list[p][aoa_idx,:]
+                    )
+                pw_2 = euclidean_distances(
+                    self.vec_list[q][aoa_idx,:]
+                    )
+                
+                corr_aoa = pearsonr(pw_1[np.triu_indices(len(aoa_idx), 1)],
+                                    pw_2[np.triu_indices(len(aoa_idx), 1)])
+
+                corr_full_list.append(corr_full[0])
+                corr_aoa_list.append(corr_aoa[0])
+                i += 1
+
+        return corr_full_list, corr_aoa_list
+
+
+    def get_fold_v_og_corr(self):
+        # Get pairwise correlation of folds with original GloVe
+
+        corr_og_list_full = []
+        corr_og_list_aoa = []
+        for x in self.vec_list:
+                
+            corr_full, corr_aoa = self._compare_to_emb(
+                x, self.all_fold_vocab, self.wdnimg, self.og_vocab, self.aoa
+                )
+            corr_og_list_full.append(corr_full)
+            corr_og_list_aoa.append(corr_aoa)
+
+        return corr_og_list_full, corr_og_list_aoa
+
+
+    def get_fold_v_other_corr(self, other_vocab_path, other_vec_path):
+        vecs_other = np.loadtxt(
+            other_vec_path,
+            usecols = [x for x in range(1,50)]
+        )
+        textfile = open(
+            other_vocab_path,
+            "r")
+        vocab_other = textfile.read().split('\n')
+        vocab_other = [x.split(" ")[0] for x in vocab_other]
+
+        # Filter for items in og embedding
+        idxs = [i for i, x in enumerate(vocab_other) if x in self.og_vocab]
+        vocab_other = [vocab_other[x] for x in idxs]
+        vecs_other = vecs_other[idxs,:]
+
+
+        corr_list_full = []
+        corr_list_aoa = []
+        for x in self.vec_list:
+                
+            corr_full, corr_aoa = self._compare_to_emb(
+                x, self.all_fold_vocab, vecs_other, vocab_other, self.aoa
+                )
+            corr_list_full.append(corr_full)
+            corr_list_aoa.append(corr_aoa)
+
+        return corr_list_full, corr_list_aoa
+
+
+if __name__ == "__main__":
+
+    analyse = FoldAnalyser(
+        os.path.join(Path(__file__).parent, "childes_nfold_20")
+        )
+    full_pw, aoa_pw = analyse.get_pairwise_fold_corr()
+    full_og, aoa_og = analyse.get_fold_v_og_corr()
+    full_text8, aoa_text8 = analyse.get_fold_v_other_corr(
+        "/Users/apple/Documents/GitHub/GloVe_STATICCLONE/vocab_text8.txt",
+        "/Users/apple/Documents/GitHub/GloVe_STATICCLONE/vectors_text8.txt"
     )
-print(f"Full correlation w og (all): {corr_full[0]}; (AoA): {corr_aoa[0]}")
-"""
 
-
-# Correlation of full enwik8 corpus with text8
-"""
-vecs_full_text8 = np.loadtxt(
-    "/Users/apple/Documents/GitHub/GloVe/vectors_text8.txt",
-    usecols = [x for x in range(1,50)]
-)
-textfile = open(
-            "/Users/apple/Documents/GitHub/GloVe/vocab_text8.txt",
-            "r")
-vocab_text8 = textfile.read().split('\n')
-vocab_text8 = [x.split(" ")[0] for x in vocab_text8]
-
-
-intersect_vocab = [x for x in og_vocab if (x in vocab_text8) and (x in vocab_enwik8)]
-idxs_enwik8 = [vocab_enwik8.index(x) for x in intersect_vocab]
-idxs_text8 = [vocab_text8.index(x) for x in intersect_vocab]
-
-
-corr_full, corr_aoa = compare_to_emb(vecs_full_enwik8[idxs_enwik8,:], intersect_vocab, vecs_full_text8[idxs_text8,:], intersect_vocab, aoa)
-print(f"Full correlation w text8 (all): {corr_full[0]}; (AoA): {corr_aoa[0]}")
-"""
+    print(np.mean(full_pw), np.mean(aoa_pw))
+    print(np.mean(full_og), np.mean(aoa_og))
+    print(np.mean(full_text8), np.mean(aoa_text8))

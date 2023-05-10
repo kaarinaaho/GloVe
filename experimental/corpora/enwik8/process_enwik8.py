@@ -60,7 +60,7 @@ class ProcessEnwik8(ProcessCorpus):
         return t
 
     def custom_file_func(self, text):
-        tree = ET.parse(os.path.join(Path(__file__).parent, "enwik8"))
+        tree = ET.parse(os.path.join(Path(__file__).parent, "data/enwik8"))
         root = tree.getroot()
         print(root)
 
@@ -84,7 +84,9 @@ class ProcessEnwik8(ProcessCorpus):
                     if article_text is not None:
                         if (
                             "#REDIRECT" not in article_text
-                            ):
+                            ) & (
+                            "#redirect" not in article_text) & (
+                            "#Redirect" not in article_text):
                             article_text = self.process_article_text(article_text)
                             if (
                                 "#redirect" not in article_text
